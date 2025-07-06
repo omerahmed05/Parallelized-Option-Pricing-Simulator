@@ -18,8 +18,31 @@ By averaging the option payoff across all of these paths, we estimate the expect
 - Makefile
 
 ## Background
-### What are financial deratives?
-Financial derivatives is a contract between two parties whose value is derived from an underlying asset (such as a stock, bond, or commodity). In some types like futures and forwards, one party agrees to buy an asset at a predetermined price and future date. Put simply, it can be like a bet, but often serves other purposes like risk management. The parties may have different motivations. One might bet that the asset will increase in value, while the other bets that the asset will decrease in value. If the asset depreciates below the agreed price, then the seller benefits because they sold it at a higher price than current market value. If the asset increases in value above the agreed price, then the buyer benefits because they secured it at a lower price than current market value. The special thing about derivatives is that it can be used as a trading tool, which is a key factor. 
+### What are options?
+Options are financial contracts that give the buyer the right, but not the obligation, to buy or sell an underlying asset at a fixed price (called the strike price) before or at a specific expiration date.
+
+There are two main types of option contracts:
+
+**Call Option**  
+Gives the buyer the right to buy the asset at the strike price.
+- You buy a call when you believe the asset’s price will go up.
+- Example: Suppose you expect the price of a product (like a stock) to rise soon. You buy a call option, paying a premium to lock in the ability to buy it at today’s price.
+- If the price rises above the strike, you can either exercise the option to buy low and sell high or sell the option itself for a profit.
+- If the price doesn’t rise, you simply let the option expire. Your only loss is the premium you paid.
+
+**Put Option**
+Gives the buyer the right to sell the asset at the strike price.
+- You buy a put when you want to protect yourself from falling prices.
+- Example: Imagine you’re a seller of apples and fear the market price will fall. You buy a put option to secure the right to sell your apples at a fixed price.
+- If prices drop, you can still sell at the higher strike price, thus limiting your losses.
+- If prices rise, you let the put expire and just lose the premium, but you still benefit from the higher market prices.
+
+Options are commonly used for speculation or risk management. Unlike owning the asset directly, options let traders bet on price movements while limiting their downside. For example, a buyer might purchase a call option to benefit if the asset goes up, but if it doesn't, the most they lose is the price they paid for the option.
+
+Note:
+- In order to buy an option, you must pay a premium to the seller.
+- Options have expiration dates.
+
 
 #### How can it be used to manage risks?
 Imagine a boxing match is announced 6 months from today. You can:
@@ -46,7 +69,7 @@ One of the simplest and most elegant uses of Monte Carlo simulation is estimatin
 
 ##### Unit Square  
 A square with side length 1, giving an area of 1.
-![alt text](images/unit_square)
+![alt text](images/unit_square.png)
 
 ##### Quarter Circle  
 A quarter of a unit circle (radius = 1) is inscribed within the square.  
@@ -99,20 +122,42 @@ Here’s how it works:
 
    ![alt text](images/parameters.png)
 
-   \( Z \) represents the random shock to the asset price at that step. Most of the time, it's near 0 (small price changes), but sometimes it’s larger, causing bigger fluctuations.
+   Z represents the random shock to the asset price at that step. Most of the time, it's near 0 (small price changes), but sometimes it’s larger, causing bigger fluctuations.
+
+   Note: Real-world data shows that daily price changes (especially log returns) are often clustered around a mean (usually close to 0), with fewer large changes, which is the behavior of a normal bell curve.
 
 4. Repeat this step-by-step price update many times to create one possible "path" of how the price might move over time (this is where the multithreading optimization comes in).
 
 5. Simulate thousands or millions of these paths. Each one represents a different possible future for the asset price, capturing the uncertainty and randomness of the market.
 
 6. For each simulated path, calculate the payoff of the option (how much it would be worth at expiration).
+   - For a call option:
+   payoff = max(final_asset_price - strike_price, 0)
+   (If the final asset price is above the strike price, you gain the difference; otherwise, zero.)
+
+   - For a put option:
+   payoff = max(strike_price - final_asset_price, 0)
+   (If the final asset price is below the strike price, you gain the difference; otherwise, zero.)
 
 7. Average all those payoffs together to estimate the expected value of the option today.
 
 ## Evaluating the model
 We will evaluate the Monte Carlo simulation engine in two key ways:
    1. Performance Comparison: Measure the speedup achieved by parallelizing the simulation with OpenMP by comparing the run time of the single-threaded and multi-threaded versions.
-   2. Accuracy Check: Compare the option price estimated by our Monte Carlo simulation against the price calculated using the Black-Scholes closed-form analytical formula (when applicable). This helps validate the correctness of our simulation under ideal conditions.
+   2. Accuracy Check: Compare the option price estimated by our Monte Carlo simulation against the price calculated using the Black-Scholes closed-form analytical formula (when applicable) for both the call and put options. This helps validate the correctness of our simulation under ideal conditions.
+
+   The following is the Black Scholes closed form analytical formula for the call and put options:
+   ![alt text](image-1.png)
+   c = call option price
+   p = put option price
+   S = current asset price
+   K = strike price
+   r = risk-free interest rate (annual, continuous compounding)
+   T = time to expiration (in years)
+   σ = volatility of the asset’s returns (standard deviation)
+   N(x) = cumulative distribution function of the standard normal distribution (probability that a normal variable ≤ x)
+      - Note: We use the erf (error function) to compute the CDF.
+   e = base of natural logarithm (Euler’s number)
 
 ## User Input
 Current asset price (S₀) -> the price of the underlying asset today
@@ -122,3 +167,4 @@ Volatility (σ) -> annualized standard deviation of the asset’s returns (e.g.,
 Risk-free interest rate (r) -> annualized risk-free rate (e.g., 0.05 for 5%)
 Number of simulation paths -> how many random price paths to generate (more paths → more accurate results but slower)
 Number of time steps per path -> how many small intervals to split the total time T into (e.g., 252 for daily steps in a year). When simulating a price path from today until option expiration, you break the total time period into small intervals, called time steps. Instead of jumping directly from the start price to the end price in one go, you simulate the price step-by-step, moving forward a little bit at a time.
+Strike price
