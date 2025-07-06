@@ -147,7 +147,7 @@ We will evaluate the Monte Carlo simulation engine in two key ways:
    2. Accuracy Check: Compare the option price estimated by our Monte Carlo simulation against the price calculated using the Black-Scholes closed-form analytical formula (when applicable) for both the call and put options. This helps validate the correctness of our simulation under ideal conditions.
 
    The following is the Black Scholes closed form analytical formula for the call and put options:
-   ![alt text](image-1.png)
+   ![alt text](images/analytical.png)
    c = call option price
    p = put option price
    S = current asset price

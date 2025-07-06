@@ -1,51 +1,6 @@
 #include <iostream>
-#include <cmath>
 #include <random>
-
-/**
- * Calculate the next asset price using geometric Brownian motion
- * 
- * @param S Current asset price
- * @param mu Interest rate
- * @param sigma Volatility (standard deviation)
- * @param dt Time step size
- * @param Z Random normal variable ~ N(0,1)
- * @return Next asset price
- */
-double nextPrice(double S, double mu, double sigma, double dt, double Z) {
-    // S_next = S * exp((mu - 0.5*sigma^2)*dt + sigma*sqrt(dt)*Z)
-    double drift = (mu - 0.5 * sigma * sigma) * dt;
-    double diffusion = sigma * std::sqrt(dt) * Z;
-    
-    return S * std::exp(drift + diffusion);
-}
-
-/**
- * Analytical Black Scholes Formula
- */
-
-// Standard normal cumulative distribution function (CDF)
-    // Using the error function erf for approximation
-double norm_cdf(double x) {
-    return 0.5 * (1.0 + std::erf(x / std::sqrt(2.0)));
-}
-
-// Black-Scholes formula for European Call Option price
-double black_scholes_call(double S, double K, double r, double sigma, double T) {
-    double d1 = (std::log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * std::sqrt(T));
-    double d2 = d1 - sigma * std::sqrt(T);
-    
-    return S * norm_cdf(d1) - K * std::exp(-r * T) * norm_cdf(d2);
-}
-
-// Black-Scholes formula for European Put Option price
-double black_scholes_put(double S, double K, double r, double sigma, double T) {
-    double d1 = (std::log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * std::sqrt(T));
-    double d2 = d1 - sigma * std::sqrt(T);
-    
-    return K * std::exp(-r * T) * norm_cdf(-d2) - S * norm_cdf(-d1);
-}
-
+#include "math.h" // function declarations for math formulas
 
 int main() {
     double asset_price{};
@@ -85,11 +40,36 @@ int main() {
      * Mean is 0 because we want to keep the model unbiased, meaning the random shocks modeled by Z are equally likely to push the price up or down
      */
     std::normal_distribution<double> dist(0.0, 1.0); // mean 0, stddev 1
+    
+    std::vector<double> final_prices;
 
-    double Z = dist(rng); // generate a random number
+    // generate n number of paths where n = num_paths
+    for (int i = 0; i < num_paths; i++) {
+        double Z = dist(rng); // generate a random number
+    
+        double current_price{asset_price};
 
+        // 1 path
+        for (int j = 0; j < num_steps; j++) {
+            Z = dist(rng);
+            current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
+        }
+        final_prices.push_back(current_price); // add final price only
+    }
 
-    double new_price = nextPrice(asset_price, interest_rate, volatility, dt, Z);
+    double put_price = calculate_put_price(final_prices, strike_price, interest_rate, time_to_expiration);
+    double call_price = calculate_call_price(final_prices, strike_price, interest_rate, time_to_expiration);
+    double analytical_put{black_scholes_put(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
+    double analytical_call{black_scholes_call(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
 
+    std::cout << "Results: \n";
+
+    std::cout << "===Single Threaded Monte Carlo Simulation Engine===\n";
+    std::cout << "Put Price: " << put_price << ".\n";
+    std::cout << "Call Price: " << call_price << ".\n";
+
+    std::cout << "===Black Scholes Analytical Formula===\n";
+    std::cout << "Put Price: " << analytical_put << ".\n";
+    std::cout << "Call Price: " << analytical_call << ".\n";
     return 0;
 }
