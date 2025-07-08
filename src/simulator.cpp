@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <chrono>
 #include "math.h" // function declarations for math formulas
 
 class Simulator {
@@ -22,7 +23,10 @@ class Simulator {
 
     public:
         // Constructor to initialize random number generator
-        Simulator() : rng(rd()), dist(0.0, 1.0) {}
+        Simulator() {
+            rng = std::mt19937(rd());         
+            dist = std::normal_distribution<double>(0.0, 1.0);
+        }
 
         void get_user_input() {
             std::cout << "Enter the current asset price: " << "\n";
@@ -53,7 +57,7 @@ class Simulator {
             double analytical_put{black_scholes_put(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
             double analytical_call{black_scholes_call(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
                 
-            std::cout << "Results: \n";
+            std::cout << "\nResults: \n";
 
             std::cout << "===Single Threaded Monte Carlo Simulation Engine===\n";
             std::cout << "Put Price: " << put_price << ".\n";
@@ -90,8 +94,16 @@ class Simulator {
 int main() {
     Simulator sim;
     sim.get_user_input();
-    sim.run_single_threaded_simulation();
-    sim.output_results();
 
+    /**
+     * Time how long it took to compute the price using a single thread
+     */
+    auto start = std::chrono::high_resolution_clock::now();
+    sim.run_single_threaded_simulation();
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+
+    sim.output_results();
+    std::cout << "\nSingle Threaded Time: " << elapsed.count() <<".\n";
     return 0;
 }
