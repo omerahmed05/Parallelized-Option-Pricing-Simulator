@@ -1,11 +1,11 @@
-# OpenMP Parallel Financial Monte Carlo Simulator
+# Parallelized Option Pricing Simulator
 
 ## Summary
 This project implements a Monte Carlo simulation engine in C++ using OpenMP to price options. In this project, we use the Black-Scholes model as a framework to describe how asset prices behave over time. It provides the mathematical assumptions we rely on, such as constant volatility, no arbitrage, and asset prices following a geometric Brownian motion.
 
 We then apply a Monte Carlo simulation engine to estimate the future price of the asset based on these assumptions. 
    - The Black-Scholes framework gives us a formula that models how the asset price evolves step-by-step, including a random variable Z that represents unpredictable market movements.
-   - The Monte Carlo engine simulates many possible price paths by generating different values for ZZ at each step.
+   - The Monte Carlo engine simulates many possible price paths by generating different values for Z at each step.
    - Each simulation gives us one possible future path for the asset price.
    - We repeat this simulation many times (thousands or more), producing a wide range of potential futures.
 
