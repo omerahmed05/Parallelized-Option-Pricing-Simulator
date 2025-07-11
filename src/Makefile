@@ -2,7 +2,7 @@ all: install-python-packages simulator
 
 # install-python-packages is a marker file:
 # compares timestamp of install-python-packages and requirements.txt
-# if requirements.txt has been updated, a new marker file is generated and pip install -r requirements.txt is ran
+# if requirements.txt has been updated (meaning more recent time stamp than install-python-packages), a new marker file is generated and pip install -r requirements.txt is ran
 install-python-packages: requirements.txt
 	pip install -r requirements.txt
 	touch install-python-packages

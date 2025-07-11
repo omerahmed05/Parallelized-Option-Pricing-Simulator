@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('dist/example.csv')
+df = pd.read_csv('dist/Data.csv')
 
 for column in df.columns:
     if column != "time_step":

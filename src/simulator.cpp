@@ -1,6 +1,7 @@
 #include <iostream>
 #include <random>
 #include <chrono>
+#include <fstream> // write to csv
 #include "math.h" // function declarations for math formulas
 
 class Simulator {
@@ -20,6 +21,7 @@ class Simulator {
         std::normal_distribution<double> dist; // mean 0, stddev 1
 
         std::vector<double> final_prices;
+        std::vector<std::vector<double>> path_data; // 2d array: [time_step][path_number]
 
     public:
         // Constructor to initialize random number generator
@@ -44,10 +46,17 @@ class Simulator {
 
             std::cout << "Enter the number of simulation paths (e.g., 100000): " << "\n";
             std::cin >> num_paths;
-            std::cout << "Enter the number of time steps per path (e.g., 252): " << "\n"; 
+            std::cout << "Enter the number of time steps per path (max is 100): " << "\n"; 
             std::cin >> num_steps;  
 
-            // Calculate dt after getting user input
+            if (num_steps > 100) {
+                num_steps = 100;
+            }
+            
+            // Initialize path_data now that we know the dimensions
+            path_data.resize(num_steps, std::vector<double>(num_paths));
+
+            // Calculate dt after getting user input for plugging into formula
             dt = time_to_expiration / num_steps;
         }
 
@@ -79,9 +88,42 @@ class Simulator {
                 for (int j = 0; j < num_steps; j++) {
                     Z = dist(rng);
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
+                    path_data[j][i] = current_price;
                 }
                 final_prices.push_back(current_price); // add final price only
             }
+        }
+
+
+        void write_to_csv() {
+            std::ofstream data("dist/Data.csv"); // output file stream
+            
+            // column headers
+            data << "time_step,";
+
+            for (int i = 1; i <= num_paths; i++) {
+                data << "path_" << i;
+
+                if (i != num_paths) {
+                    data << ",";
+                }
+            }
+
+            data << "\n";
+            
+            // adding actual data from path_data into .csv
+            for (int i = 0; i < num_steps; i++) {
+                data << i << ",";
+                for (int j = 0; j < num_paths; j++) {
+                    data << path_data[i][j];
+
+                    if (j != num_paths - 1) {
+                        data << ",";
+                    }
+                }
+                data << "\n";
+            }
+
         }
 
         void run_multi_threaded_simulation() {
@@ -105,5 +147,8 @@ int main() {
 
     sim.output_results();
     std::cout << "\nSingle Threaded Time: " << elapsed.count() <<".\n";
+
+    std::cout << "Generating visual..." << "\n";
+    sim.write_to_csv();
     return 0;
 }
