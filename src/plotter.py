@@ -3,13 +3,17 @@ import matplotlib.pyplot as plt
 
 df = pd.read_csv('dist/Data.csv')
 
+# Create a pandas series for each column 
+# A Pandas Series is a mapping where each value in a row / column gets an index assigned to it
 for column in df.columns:
     if column != "time_step":
-        plt.plot(df["time_step"], df[column], label=column) # plot each point, with time_step being the x axis and the y axis being the price path 
+        plt.plot(df["time_step"], df[column], label=column) # each value in time_step is the x-value, each value in current column is the y-value 
                                                             # label each point to differentiate between paths
+
+plt.xlim(0, df["time_step"].iloc[-1]) # scale our axis from 0 to the last value in the time series column 
                                                             
 plt.xlabel("Time Step")
-plt.ylabel("Asset Price")
+plt.ylabel("Asset Price") 
 plt.title("Simulated Option Price Paths Over Time")
 
 plt.tight_layout()

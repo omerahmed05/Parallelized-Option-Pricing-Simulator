@@ -31,51 +31,60 @@ class Simulator {
         }
 
         void get_user_input() {
-            std::cout << "Enter the current asset price: " << "\n";
+            std::cout << "\n=== Market Parameters ===\n";
+            std::cout << "Current asset price: ";
             std::cin >> asset_price;
-            std::cout << "Enter the strike price: " << "\n";
+        
+            std::cout << "Strike price: ";
             std::cin >> strike_price;
-            std::cout << "Enter the time to expiration (in years, e.g., 0.5 for 6 months): " << "\n";
+        
+            std::cout << "Time to expiration (in years, e.g., 0.5 for 6 months): ";
             std::cin >> time_to_expiration;
-            std::cout << "Enter the volatility (as a decimal, e.g., 0.2 for 20%): " << "\n";
+        
+            std::cout << "Volatility (as a decimal, e.g., 0.2 for 20%): ";
             std::cin >> volatility;
-            std::cout << "Enter the risk-free interest rate (as a decimal, e.g., 0.05 for 5%): " << "\n";
+        
+            std::cout << "Risk-free interest rate (as a decimal, e.g., 0.05 for 5%): ";
             std::cin >> interest_rate;
-
-            std::cout << "Algorithm Tuning Parameters:" << "\n";
-
-            std::cout << "Enter the number of simulation paths (e.g., 100000): " << "\n";
+        
+            std::cout << "\n=== Simulation Parameters ===\n";
+            std::cout << "Number of simulation paths (e.g., 100000): ";
             std::cin >> num_paths;
-            std::cout << "Enter the number of time steps per path (max is 100): " << "\n"; 
-            std::cin >> num_steps;  
-
-            if (num_steps > 100) {
-                num_steps = 100;
+        
+            std::cout << "Number of time steps per path (max allowed: 1000): ";
+            std::cin >> num_steps;
+        
+            if (num_steps > 1000) {
+                std::cout << "Capping time steps to 1000 due to performance constraints.\n";
+                num_steps = 1000;
             }
-            
+        
             // Initialize path_data now that we know the dimensions
             path_data.resize(num_steps, std::vector<double>(num_paths));
-
-            // Calculate dt after getting user input for plugging into formula
+        
+            // Time step interval
             dt = time_to_expiration / num_steps;
         }
-
+        
         void output_results() {
             double put_price = calculate_put_price(final_prices, strike_price, interest_rate, time_to_expiration);
             double call_price = calculate_call_price(final_prices, strike_price, interest_rate, time_to_expiration);
-            double analytical_put{black_scholes_put(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
-            double analytical_call{black_scholes_call(asset_price, strike_price, interest_rate, volatility, time_to_expiration)};
-                
-            std::cout << "\nResults: \n";
-
-            std::cout << "===Single Threaded Monte Carlo Simulation Engine===\n";
-            std::cout << "Put Price: " << put_price << ".\n";
-            std::cout << "Call Price: " << call_price << ".\n";
-
-            std::cout << "===Black Scholes Analytical Formula===\n";
-            std::cout << "Put Price: " << analytical_put << ".\n";
-            std::cout << "Call Price: " << analytical_call << ".\n";
-        }
+        
+            double analytical_put = black_scholes_put(asset_price, strike_price, interest_rate, volatility, time_to_expiration);
+            double analytical_call = black_scholes_call(asset_price, strike_price, interest_rate, volatility, time_to_expiration);
+        
+            std::cout << "\n====================== Results ======================\n";
+        
+            std::cout << ">> Monte Carlo Simulation (Single Threaded)\n";
+            std::cout << "Estimated Put Price  : " << put_price << "\n";
+            std::cout << "Estimated Call Price : " << call_price << "\n";
+        
+            std::cout << "\n>> Black-Scholes Analytical Solution\n";
+            std::cout << "Analytical Put Price  : " << analytical_put << "\n";
+            std::cout << "Analytical Call Price : " << analytical_call << "\n";
+        
+            std::cout << "=====================================================\n";
+        }        
 
         void run_single_threaded_simulation() {
             // generate n number of paths where n = num_paths
