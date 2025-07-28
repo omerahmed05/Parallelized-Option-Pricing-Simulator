@@ -185,7 +185,7 @@ Where:
 - **Volatility (σ)** → annualized standard deviation of the asset's returns (e.g., 0.2 for 20%)
 - **Risk-free interest rate (r)** → annualized risk-free rate (e.g., 0.05 for 5%)
 - **Number of simulation paths** → how many random price paths to generate (more paths → more accurate results but slower)
-- **Number of time steps per path** → how many small intervals to split the total time T into. When simulating a price path from today until option expiration, you break the total time period into small intervals, called time steps. Instead of jumping directly from the start price to the end price in one go, you simulate the price step-by-step, moving forward a little bit at a time. In this tool, the unit for time step is years where t = time to expiration (years) / # of time steps. The maximum allowed number of time steps per path is capped at 1,000 to balance simulation accuracy and performance because increasing beyond this yields diminishing returns.
+- **Number of time steps per path** → how many small intervals to split the total time T into (change in time - dt). When simulating a price path from today until option expiration, you break the total time period into small intervals, called time steps. Instead of jumping directly from the start price to the end price in one go, you simulate the price step-by-step, moving forward a little bit at a time. In this tool, the unit for time step is years where dt = time to expiration (years) / # of time steps. The maximum allowed number of time steps per path is capped at 1,000 to balance simulation accuracy and performance because increasing beyond this yields diminishing returns.
 
 
 ## Running The Application
