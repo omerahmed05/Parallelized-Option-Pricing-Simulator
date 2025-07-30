@@ -4,7 +4,6 @@
 #include <fstream> // write to csv
 #include "math.h" // function declarations for math formulas
 #include <thread>
-#include <mutex>
 
 class Simulator {
     private:
@@ -24,9 +23,6 @@ class Simulator {
 
         std::vector<double> final_prices;
         std::vector<std::vector<double>> path_data; // 2d array: [time_step][path_number]
-
-        std::mutex path_data_lock;
-        std::mutex final_prices_lock;
     public:
         // Constructor to initialize random number generator
         Simulator() {
@@ -88,30 +84,52 @@ class Simulator {
             std::cout << "Analytical Call Price : " << analytical_call << "\n";
         
             std::cout << "=====================================================\n";
-        }        
-
-        void run_single_threaded_simulation(int paths) {
-            // generate n number of paths where n = paths
-            for (int i = 0; i < paths; i++) {
-                double Z; // generate a random number
-            
+        }   
+        
+        void run_simulation_range(int start, int end) {
+            // chunk which consists of paths to operate on
+            for (int i = start; i < end; i++) {            
                 double current_price{asset_price};
 
-                // simulate 1 pathq
+                // simulate 1 path
                 for (int j = 0; j < num_steps; j++) {
-                    Z = dist(rng);
+                    double Z = dist(rng);
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
 
-                    path_data_lock.lock();
                     path_data[j][i] = current_price;
-                    path_data_lock.unlock();
                 }
-                final_prices_lock.lock();
-                final_prices.push_back(current_price); // add final price only, used by analytical formula
-                final_prices_lock.unlock();
+                final_prices[i] = current_price; // add final price only, used by analytical formula
             }
         }
 
+        void run_single_threaded_simulation() {
+            clear();
+        }
+
+        void run_multi_threaded_simulation() {
+            clear();
+            std::vector<std::thread> threads;
+            unsigned int num_threads = std::thread::hardware_concurrency();
+            int chunk_size = num_paths / num_threads;
+
+            for (int i = 0; i < num_threads; i++) {
+                std::thread t(&Simulator::run_single_threaded_simulation, this, chunk_size);
+                threads.push_back(std::move(t)); // push_back appends a copy of the passed object by default. use std::move to overwrite that functionality and move the original thread
+                                                // std::thread is not copyable - each thread is original
+            }
+
+            for (int i = 0; i < num_threads; i++) {
+                threads[i].join();
+            }
+        }
+
+        void clear() {  
+            // Clear and pre-allocate 
+            // pre-allocate -> allows us to not use locks because each thread is assigned a chunk to operate on and there are no overlaps between the threads
+            // clear -> clears the data from previous runs (single threaded or multi threaded run)
+            final_prices.resize(num_paths);
+            path_data.assign(num_steps, std::vector<double>(num_paths));
+        }
 
         void write_to_csv() {
             std::ofstream data("dist/Data.csv"); // output file stream
@@ -145,26 +163,6 @@ class Simulator {
             }
 
         }
-
-        void run_multi_threaded_simulation() {
-            std::vector<std::thread> threads;
-            unsigned int num_threads = std::thread::hardware_concurrency();
-            int chunk_size = num_paths / num_threads;
-
-            for (int i = 0; i < num_threads; i++) {
-                std::thread t(run_single_threaded_simulation, chunk_size);
-                threads.push_back(std::move(t)); // push_back appends a copy of the passed object by default. use std::move to overwrite that functionality and move the original thread
-                                                // std::thread is not copyable - each thread is original
-            }
-
-            for (int i = 0; i < num_threads; i++) {
-                threads[i].join();
-            }
-        }
-
-        int get_num_paths() {
-            return num_paths;
-        }
 };
 
 int main() {
@@ -175,20 +173,22 @@ int main() {
      * Time how long it took to compute the price using a single thread
      */
     auto start = std::chrono::high_resolution_clock::now();
-    sim.run_single_threaded_simulation(sim.get_num_paths());
+    sim.run_single_threaded_simulation();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
+    std::cout << "\n=== SINGLE THREADED RESULTS ===\n";
     sim.output_results();
-    std::cout << "\nSingle Threaded Time: " << elapsed.count() <<".\n";
+    std::cout << "Single Threaded Time: " << elapsed.count() << " seconds\n";
 
-    auto start = std::chrono::high_resolution_clock::now();
+    start = std::chrono::high_resolution_clock::now();
     sim.run_multi_threaded_simulation();
-    auto end = std::chrono::high_resolution_clock::now();
+    end = std::chrono::high_resolution_clock::now();
     elapsed = end - start;
 
-    std::cout << "\nMulti Threaded Time: " << elapsed.count() <<".\n";
-    // output multi threaded call and put
+    std::cout << "\n=== MULTI THREADED RESULTS ===\n";
+    sim.output_results();
+    std::cout << "Multi Threaded Time: " << elapsed.count() << " seconds\n";
     
     std::cout << "Generating visual..." << "\n";
     sim.write_to_csv();
