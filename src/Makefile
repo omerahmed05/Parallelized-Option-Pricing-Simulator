@@ -1,5 +1,5 @@
 all:
-	g++ -o simulator simulator.cpp math.cpp
+	g++ -fopenmp -o simulator simulator.cpp math.cpp
 	./simulator
 	../venv/bin/python plotter.py
 

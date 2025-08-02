@@ -3,6 +3,7 @@
 #include <chrono>
 #include <fstream> // write to csv
 #include "math.h" // function declarations for math formulas
+#include <omp.h>
 
 class Simulator {
     private:
@@ -17,20 +18,12 @@ class Simulator {
 
         // Random Number Generation
         std::random_device rd;
-        std::mt19937 rng; // random number generator
-        std::normal_distribution<double> dist; // mean 0, stddev 1
 
         std::vector<double> final_prices;
         std::vector<std::vector<double>> path_data; // 2d array: [time_step][path_number]
-
-        std::mutex path_data_lock;
-        std::mutex final_prices_lock;
     public:
         // Constructor to initialize random number generator
-        Simulator() {
-            rng = std::mt19937(rd());         
-            dist = std::normal_distribution<double>(0.0, 1.0);
-        }
+        Simulator() { }
 
         void get_user_input() {
             std::cout << "\n=== Market Parameters ===\n";
@@ -62,8 +55,9 @@ class Simulator {
             }
         
             // Initialize path_data now that we know the dimensions
-            path_data.resize(num_steps, std::vector<double>(num_paths));
-        
+            path_data.resize(num_steps, std::vector<double>(num_paths)); // 2d array with dimensions num_steps and num_paths
+            final_prices.resize(num_paths);
+
             // Time step interval
             dt = time_to_expiration / num_steps;
         }
@@ -86,7 +80,7 @@ class Simulator {
             std::cout << "Analytical Call Price : " << analytical_call << "\n";
         
             std::cout << "=====================================================\n";
-        }        
+        } 
 
         void run_single_threaded_simulation() {
             // generate n number of paths where n = num_paths
@@ -100,16 +94,34 @@ class Simulator {
                     Z = dist(rng);
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
 
-                    path_data_lock.lock();
                     path_data[j][i] = current_price;
-                    path_data_lock.unlock();
                 }
-                final_prices_lock.lock();
                 final_prices.push_back(current_price); // add final price only, used by analytical formula
-                final_prices_lock.unlock();
             }
         }
 
+        void run_multi_threaded_simulation() {
+            #pragma omp parallel
+            {
+                // std:mt19937 and std::normal_distribution is not thread safe, so each thread gets its own thread local variable
+                std::mt19937 local_rng(rd() + omp_get_thread_num()); 
+                std::normal_distribution<double> local_dist(0.0, 1.0);
+
+                // generate n number of paths where n = num_paths
+                for (int i = 0; i < num_paths; i++) {
+                    double current_price{asset_price};
+
+                    #pragma omp for
+                    // 1 path
+                    for (int j = 0; j < num_steps; j++) {
+                        double Z = local_dist(local_rng);
+                        current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
+                        path_data[j][i] = current_price;
+                    }
+                    final_prices.push_back(current_price); // add final price only, used by analytical formula
+                }
+            }
+        }
 
         void write_to_csv() {
             std::ofstream data("dist/Data.csv"); // output file stream
@@ -140,18 +152,6 @@ class Simulator {
                 data << "\n";
             }
 
-        }
-
-        void run_multi_threaded_simulation() {
-            std::vector<std::thread> threads;
-            unsigned int num_threads = std::thread::hardware_concurrency();
-            int chunk_size = num_paths / num_threads;
-
-            for (int i = 0; i < num_threads; i++) {
-                std::thread t(run_single_threaded_simulation, chunk_size);
-                threads.push_back(std::move(t)); // push_back appends a copy of the passed object by default. use std::move to overwrite that functionality and move the original thread
-                                                // std::thread is not copyable - each thread is original
-            }
         }
 
         int get_num_paths() {
