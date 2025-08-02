@@ -3,8 +3,6 @@
 #include <chrono>
 #include <fstream> // write to csv
 #include "math.h" // function declarations for math formulas
-#include <thread>
-#include <mutex>
 
 class Simulator {
     private:
@@ -90,14 +88,14 @@ class Simulator {
             std::cout << "=====================================================\n";
         }        
 
-        void run_single_threaded_simulation(int paths) {
-            // generate n number of paths where n = paths
-            for (int i = 0; i < paths; i++) {
-                double Z; // generate a random number
+        void run_single_threaded_simulation() {
+            // generate n number of paths where n = num_paths
+            for (int i = 0; i < num_paths; i++) {
+                double Z = dist(rng); // generate a random number
             
                 double current_price{asset_price};
 
-                // simulate 1 pathq
+                // 1 path
                 for (int j = 0; j < num_steps; j++) {
                     Z = dist(rng);
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
@@ -117,7 +115,7 @@ class Simulator {
             std::ofstream data("dist/Data.csv"); // output file stream
             
             // column headers
-            data << "time,";
+            data << "time_step,";
 
             for (int i = 1; i <= num_paths; i++) {
                 data << "path_" << i;
@@ -129,11 +127,9 @@ class Simulator {
 
             data << "\n";
             
-            double dt{time_to_expiration / num_steps}; // duration of 1 step
-
             // adding actual data from path_data into .csv
             for (int i = 0; i < num_steps; i++) {
-                data << i * dt << ",";
+                data << i << ",";
                 for (int j = 0; j < num_paths; j++) {
                     data << path_data[i][j];
 
@@ -156,10 +152,6 @@ class Simulator {
                 threads.push_back(std::move(t)); // push_back appends a copy of the passed object by default. use std::move to overwrite that functionality and move the original thread
                                                 // std::thread is not copyable - each thread is original
             }
-
-            for (int i = 0; i < num_threads; i++) {
-                threads[i].join();
-            }
         }
 
         int get_num_paths() {
@@ -175,7 +167,7 @@ int main() {
      * Time how long it took to compute the price using a single thread
      */
     auto start = std::chrono::high_resolution_clock::now();
-    sim.run_single_threaded_simulation(sim.get_num_paths());
+    sim.run_single_threaded_simulation();
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
 
