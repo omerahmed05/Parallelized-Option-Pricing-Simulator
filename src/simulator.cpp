@@ -83,6 +83,9 @@ class Simulator {
         } 
 
         void run_single_threaded_simulation() {
+            std::mt19937 rng(rd());
+            std::normal_distribution<double> dist(0.0, 1.0);
+
             // generate n number of paths where n = num_paths
             for (int i = 0; i < num_paths; i++) {
                 double Z = dist(rng); // generate a random number
@@ -100,26 +103,23 @@ class Simulator {
             }
         }
 
-        void run_multi_threaded_simulation() {
-            #pragma omp parallel
-            {
+        void run_multi_threaded_simulation() {              
+            #pragma omp parallel for
+            // simulate n number of paths where n = num_paths
+            for (int i = 0; i < num_paths; i++) {
                 // std:mt19937 and std::normal_distribution is not thread safe, so each thread gets its own thread local variable
                 std::mt19937 local_rng(rd() + omp_get_thread_num()); 
                 std::normal_distribution<double> local_dist(0.0, 1.0);
 
-                // generate n number of paths where n = num_paths
-                for (int i = 0; i < num_paths; i++) {
-                    double current_price{asset_price};
+                double current_price{asset_price};
 
-                    #pragma omp for
-                    // 1 path
-                    for (int j = 0; j < num_steps; j++) {
-                        double Z = local_dist(local_rng);
-                        current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
-                        path_data[j][i] = current_price;
-                    }
-                    final_prices.push_back(current_price); // add final price only, used by analytical formula
+                // 1 path
+                for (int j = 0; j < num_steps; j++) {
+                    double Z = local_dist(local_rng);
+                    current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
+                    path_data[j][i] = current_price;
                 }
+                final_prices[i] = current_price; // add final price only, used by analytical formula
             }
         }
 
@@ -127,7 +127,7 @@ class Simulator {
             std::ofstream data("dist/Data.csv"); // output file stream
             
             // column headers
-            data << "time_step,";
+            data << "time,";
 
             for (int i = 1; i <= num_paths; i++) {
                 data << "path_" << i;
@@ -154,8 +154,16 @@ class Simulator {
 
         }
 
-        int get_num_paths() {
-            return num_paths;
+        void clear() {
+            for (int i = 0; i < final_prices.size(); i++) {
+                final_prices[i] = 0.0;
+            }
+
+            for (int i = 0; i < path_data.size(); i++) {
+                for (int j = 0; j < path_data[i].size(); j++) {
+                    path_data[i][j] = 0.0;
+                }
+            }
         }
 };
 
@@ -163,24 +171,32 @@ int main() {
     Simulator sim;
     sim.get_user_input();
 
-    /**
-     * Time how long it took to compute the price using a single thread
-     */
-    auto start = std::chrono::high_resolution_clock::now();
+    // Single threaded simulation
+    auto start_single = std::chrono::high_resolution_clock::now();
     sim.run_single_threaded_simulation();
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
+    auto end_single = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_single = end_single - start_single;
 
+    std::cout << "\n=== SINGLE THREADED RESULTS ===\n";
     sim.output_results();
-    std::cout << "\nSingle Threaded Time: " << elapsed.count() <<".\n";
+    std::cout << "\nSingle Threaded Time: " << elapsed_single.count() <<".\n";
 
-    auto start = std::chrono::high_resolution_clock::now();
+    // clear data from previous run
+    sim.clear();
+
+    // Multi threaded simulation
+    auto start_multi = std::chrono::high_resolution_clock::now();
     sim.run_multi_threaded_simulation();
-    auto end = std::chrono::high_resolution_clock::now();
-    elapsed = end - start;
+    auto end_multi = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_multi = end_multi - start_multi;
 
-    std::cout << "\nMulti Threaded Time: " << elapsed.count() <<".\n";
-    // output multi threaded call and put
+    std::cout << "\n=== MULTI THREADED RESULTS ===\n";
+    sim.output_results();
+    std::cout << "\nMulti Threaded Time: " << elapsed_multi.count() <<".\n";
+
+    // Performance comparison
+    std::cout << "\n=== PERFORMANCE COMPARISON ===\n";
+    std::cout << "Speedup: " << elapsed_single.count() / elapsed_multi.count() << "x\n";
     
     std::cout << "Generating visual..." << "\n";
     sim.write_to_csv();
