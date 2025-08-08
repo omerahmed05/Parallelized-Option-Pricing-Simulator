@@ -99,7 +99,7 @@ class Simulator {
 
                     path_data[j][i] = current_price;
                 }
-                final_prices.push_back(current_price); // add final price only, used by analytical formula
+                final_prices[i] = current_price; // add final price only, used by analytical formula
             }
         }
 

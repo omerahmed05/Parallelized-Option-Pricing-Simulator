@@ -1,22 +1,20 @@
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 df = pd.read_csv('dist/Data.csv')
 
-# Create a pandas series for each column 
-# A Pandas Series is a mapping where each value in a row / column gets an index assigned to it
+fig = go.Figure()
+
 for column in df.columns:
     if column != "time":
-        plt.plot(df["time"], df[column], label=column) # each value in time is the x-value, each value in current column is the y-value 
-                                                            # label each point to differentiate between paths
+        fig.add_trace(go.Scatter(x=df["time"], y=df[column], mode='lines', name=column))
 
-plt.xlim(0, df["time"].iloc[-1]) # scale our axis from 0 to the last value in the time series column 
-                                                            
-plt.xlabel("Time (in years)")
-plt.ylabel("Asset Price") 
-plt.title("Simulated Option Price Paths Over Time")
+fig.update_layout(
+    title="Simulated Option Price Paths Over Time",
+    xaxis_title="Time (in years)",
+    yaxis_title="Asset Price"
+)
 
-plt.tight_layout()
-plt.show()
-
-print(df.head())
+# Save to HTML file
+fig.write_html("dist/plot.html")
+print("Interactive plot saved to dist/plot.html")
