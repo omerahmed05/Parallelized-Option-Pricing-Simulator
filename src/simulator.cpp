@@ -5,26 +5,38 @@
 #include "math.h" // function declarations for math formulas
 #include <omp.h>
 
+/**
+ * Monte Carlo Option Pricing Simulator
+ * Simulates asset price paths using geometric Brownian motion
+ * and calculates option prices using both Monte Carlo and Black-Scholes methods
+ */
 class Simulator {
     private:
+        // Market parameters
         double asset_price;
         double strike_price;
         double time_to_expiration;
         double volatility;
         double interest_rate;
+        
+        // Simulation parameters
         int num_paths;
         int num_steps;
         double dt = time_to_expiration / num_steps;
 
-        // Random Number Generation
+        // Random number generation
         std::random_device rd;
 
-        std::vector<double> final_prices;
-        std::vector<std::vector<double>> path_data; // 2d array: [time_step][path_number]
+        // Storage for simulation results
+        std::vector<double> final_prices;  // Final price of each path
+        std::vector<std::vector<double>> path_data; // 2D array: [time_step][path_number]
+    
     public:
-        // Constructor to initialize random number generator
         Simulator() { }
 
+        /**
+         * Collects user input for market and simulation parameters
+         */
         void get_user_input() {
             std::cout << "\n=== Market Parameters ===\n";
             std::cout << "Current asset price: ";
@@ -54,14 +66,15 @@ class Simulator {
                 num_steps = 1000;
             }
         
-            // Initialize path_data now that we know the dimensions
-            path_data.resize(num_steps, std::vector<double>(num_paths)); // 2d array with dimensions num_steps and num_paths
+            // Initialize data structures
+            path_data.resize(num_steps, std::vector<double>(num_paths));
             final_prices.resize(num_paths);
-
-            // Time step interval
             dt = time_to_expiration / num_steps;
         }
         
+        /**
+         * Displays simulation results comparing Monte Carlo vs Black-Scholes
+         */
         void output_results() {
             double put_price = calculate_put_price(final_prices, strike_price, interest_rate, time_to_expiration);
             double call_price = calculate_call_price(final_prices, strike_price, interest_rate, time_to_expiration);
@@ -82,78 +95,80 @@ class Simulator {
             std::cout << "=====================================================\n";
         } 
 
+        /**
+         * Runs Monte Carlo simulation using single-threaded approach
+         * Generates asset price paths using geometric Brownian motion
+         */
         void run_single_threaded_simulation() {
             std::mt19937 rng(rd());
             std::normal_distribution<double> dist(0.0, 1.0);
 
-            // generate n number of paths where n = num_paths
+            // Generate num_paths price trajectories
             for (int i = 0; i < num_paths; i++) {
-                double Z = dist(rng); // generate a random number
-            
                 double current_price{asset_price};
 
-                // 1 path
+                // Simulate one complete price path
                 for (int j = 0; j < num_steps; j++) {
-                    Z = dist(rng);
+                    double Z = dist(rng);  // Random normal variable
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
-
                     path_data[j][i] = current_price;
                 }
-                final_prices[i] = current_price; // add final price only, used by analytical formula
+                final_prices[i] = current_price;  // Store final price for option pricing
             }
         }
 
+        /**
+         * Runs Monte Carlo simulation using OpenMP parallelization
+         * Each thread generates its own random number generator for thread safety
+         */
         void run_multi_threaded_simulation() {              
             #pragma omp parallel for
-            // simulate n number of paths where n = num_paths
             for (int i = 0; i < num_paths; i++) {
-                // std:mt19937 and std::normal_distribution is not thread safe, so each thread gets its own thread local variable
+                // Thread-local random number generators for safety
                 std::mt19937 local_rng(rd() + omp_get_thread_num()); 
                 std::normal_distribution<double> local_dist(0.0, 1.0);
 
                 double current_price{asset_price};
 
-                // 1 path
+                // Simulate one complete price path
                 for (int j = 0; j < num_steps; j++) {
                     double Z = local_dist(local_rng);
                     current_price = nextPrice(current_price, interest_rate, volatility, dt, Z);
                     path_data[j][i] = current_price;
                 }
-                final_prices[i] = current_price; // add final price only, used by analytical formula
+                final_prices[i] = current_price;
             }
         }
 
+        /**
+         * Exports simulation data to CSV file for visualization
+         * Format: time column + one column per price path
+         */
         void write_to_csv() {
-            std::ofstream data("dist/Data.csv"); // output file stream
+            std::ofstream data("dist/Data.csv");
             
-            // column headers
+            // Write column headers
             data << "time,";
-
             for (int i = 1; i <= num_paths; i++) {
                 data << "path_" << i;
-
-                if (i != num_paths) {
-                    data << ",";
-                }
+                if (i != num_paths) data << ",";
             }
-
             data << "\n";
             
-            // adding actual data from path_data into .csv
+            // Write price data: each row is a time step, each column is a path
             for (int i = 0; i < num_steps; i++) {
                 data << i << ",";
                 for (int j = 0; j < num_paths; j++) {
                     data << path_data[i][j];
-
-                    if (j != num_paths - 1) {
-                        data << ",";
-                    }
+                    if (j != num_paths - 1) data << ",";
                 }
                 data << "\n";
             }
-
         }
 
+        /**
+         * Resets simulation data for multiple runs
+         */
         void clear() {
             for (int i = 0; i < final_prices.size(); i++) {
                 final_prices[i] = 0.0;
@@ -167,11 +182,15 @@ class Simulator {
         }
 };
 
+/**
+ * Main function: runs both single and multi-threaded simulations
+ * and compares performance and results
+ */
 int main() {
     Simulator sim;
     sim.get_user_input();
 
-    // Single threaded simulation
+    // Single-threaded simulation with timing
     auto start_single = std::chrono::high_resolution_clock::now();
     sim.run_single_threaded_simulation();
     auto end_single = std::chrono::high_resolution_clock::now();
@@ -181,10 +200,10 @@ int main() {
     sim.output_results();
     std::cout << "\nSingle Threaded Time: " << elapsed_single.count() <<".\n";
 
-    // clear data from previous run
+    // Clear data for next run
     sim.clear();
 
-    // Multi threaded simulation
+    // Multi-threaded simulation with timing
     auto start_multi = std::chrono::high_resolution_clock::now();
     sim.run_multi_threaded_simulation();
     auto end_multi = std::chrono::high_resolution_clock::now();

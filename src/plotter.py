@@ -15,6 +15,5 @@ fig.update_layout(
     yaxis_title="Asset Price"
 )
 
-# Save to HTML file
 fig.write_html("dist/plot.html")
 print("Interactive plot saved to dist/plot.html")
