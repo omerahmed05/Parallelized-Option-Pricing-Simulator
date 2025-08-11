@@ -2,3 +2,4 @@
 venv
 src/dist
 src/install-python-packages
+src/simulator
