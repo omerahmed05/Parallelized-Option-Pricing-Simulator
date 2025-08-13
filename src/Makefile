@@ -8,4 +8,4 @@ all:
 
 clean:
 	rm -f simulator 
-	rm -f ./dist/Data.csv ./dist/plot.html
+	rm -f ./dist/*

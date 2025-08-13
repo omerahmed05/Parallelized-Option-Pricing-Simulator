@@ -6,12 +6,12 @@ df = pd.read_csv('dist/Data.csv')
 fig = go.Figure()
 
 for column in df.columns:
-    if column != "time":
-        fig.add_trace(go.Scatter(x=df["time"], y=df[column], mode='lines', name=column))
+    if column != "time_step":
+        fig.add_trace(go.Scatter(x=df["time_step"], y=df[column], mode='lines', name=column))
 
 fig.update_layout(
-    title="Simulated Option Price Paths Over Time",
-    xaxis_title="Time (in years)",
+    title="Simulated Option Price Paths Over Time (Averaged for readability)",
+    xaxis_title="Time Steps",
     yaxis_title="Asset Price"
 )
 

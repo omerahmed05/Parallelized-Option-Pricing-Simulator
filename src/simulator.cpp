@@ -142,25 +142,49 @@ class Simulator {
 
         /**
          * Exports simulation data to CSV file for visualization
-         * Format: time column + one column per price path
+         * Format: time column + averaged path columns for readability
          */
         void write_to_csv() {
             std::ofstream data("dist/Data.csv");
             
+            // Calculate target lines dynamically based on number of paths
+            int target_lines;
+            if (num_paths <= 100) {
+                target_lines = num_paths;  // Show all paths for very small datasets
+            } else {
+                // Scale using square root: more paths = more lines, but not linearly
+                target_lines = std::max(15, std::min(50, (int)std::sqrt(num_paths)));
+            }
+            
+            int batch_size = std::max(1, num_paths / target_lines);
+            int num_batches = (num_paths + batch_size - 1) / batch_size;
+            
             // Write column headers
-            data << "time,";
-            for (int i = 1; i <= num_paths; i++) {
-                data << "path_" << i;
-                if (i != num_paths) data << ",";
+            data << "time_step,";
+            for (int batch = 0; batch < num_batches; batch++) {
+                int start_idx = batch * batch_size;
+                int end_idx = std::min((batch + 1) * batch_size, num_paths);
+                data << "avg_paths_" << (start_idx + 1) << "-" << end_idx;
+                if (batch != num_batches - 1) data << ",";
             }
             data << "\n";
             
-            // Write price data: each row is a time step, each column is a path
+            // Write price data: each row is a time step, each column is an averaged path
             for (int i = 0; i < num_steps; i++) {
                 data << i << ",";
-                for (int j = 0; j < num_paths; j++) {
-                    data << path_data[i][j];
-                    if (j != num_paths - 1) data << ",";
+                for (int batch = 0; batch < num_batches; batch++) {
+                    int start_idx = batch * batch_size;
+                    int end_idx = std::min((batch + 1) * batch_size, num_paths);
+                    
+                    // Calculate average of this batch at this time step
+                    double sum = 0.0;
+                    for (int j = start_idx; j < end_idx; j++) {
+                        sum += path_data[i][j];
+                    }
+                    double avg = sum / (end_idx - start_idx);
+                    
+                    data << avg;
+                    if (batch != num_batches - 1) data << ",";
                 }
                 data << "\n";
             }
@@ -183,41 +207,82 @@ class Simulator {
 };
 
 /**
- * Main function: runs both single and multi-threaded simulations
- * and compares performance and results
+ * Main function: gives the user the option to run the simulation with a single thread, multiple threads, or both.
+ * It then runs the simulation and outputs the results.
+ * It then generates the visualization data and writes it to a CSV file.
  */
 int main() {
     Simulator sim;
     sim.get_user_input();
 
-    // Single-threaded simulation with timing
-    auto start_single = std::chrono::high_resolution_clock::now();
-    sim.run_single_threaded_simulation();
-    auto end_single = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_single = end_single - start_single;
-
-    std::cout << "\n=== SINGLE THREADED RESULTS ===\n";
-    sim.output_results();
-    std::cout << "\nSingle Threaded Time: " << elapsed_single.count() <<".\n";
-
-    // Clear data for next run
-    sim.clear();
-
-    // Multi-threaded simulation with timing
-    auto start_multi = std::chrono::high_resolution_clock::now();
-    sim.run_multi_threaded_simulation();
-    auto end_multi = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_multi = end_multi - start_multi;
-
-    std::cout << "\n=== MULTI THREADED RESULTS ===\n";
-    sim.output_results();
-    std::cout << "\nMulti Threaded Time: " << elapsed_multi.count() <<".\n";
-
-    // Performance comparison
-    std::cout << "\n=== PERFORMANCE COMPARISON ===\n";
-    std::cout << "Speedup: " << elapsed_single.count() / elapsed_multi.count() << "x\n";
+    std::cout << "Would you like to run the simulation with a single thread or multiple threads? (1 for single, 2 for multiple, 3 for both): ";
+    int choice;
+    std::cin >> choice;
     
-    std::cout << "Generating visual..." << "\n";
+    if (choice == 1) {
+        // Single-threaded simulation with timing
+        std::cout << "Running single-threaded simulation..." << "\n";
+        auto start_single = std::chrono::high_resolution_clock::now();
+        sim.run_single_threaded_simulation();
+        auto end_single = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_single = end_single - start_single;
+
+        std::cout << "\n=== SINGLE THREADED RESULTS ===\n";
+        sim.output_results();
+        std::cout << "\nSingle Threaded Time: " << elapsed_single.count() << " seconds.\n";
+        
+    } else if (choice == 2) {
+        // Multi-threaded simulation with timing
+        std::cout << "Running multi-threaded simulation..." << "\n";
+        auto start_multi = std::chrono::high_resolution_clock::now();
+        sim.run_multi_threaded_simulation();
+        auto end_multi = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_multi = end_multi - start_multi;
+
+        std::cout << "\n=== MULTI THREADED RESULTS ===\n";
+        sim.output_results();
+        std::cout << "\nMulti Threaded Time: " << elapsed_multi.count() << " seconds.\n";
+        
+    } else if (choice == 3) {
+        // Run both simulations for comparison
+        std::cout << "Running both single and multi-threaded simulations for comparison..." << "\n";
+        
+        // Single-threaded simulation with timing
+        auto start_single = std::chrono::high_resolution_clock::now();
+        sim.run_single_threaded_simulation();
+        auto end_single = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_single = end_single - start_single;
+
+        std::cout << "\n=== SINGLE THREADED RESULTS ===\n";
+        sim.output_results();
+        std::cout << "\nSingle Threaded Time: " << elapsed_single.count() << " seconds.\n";
+
+        // Clear data for next run
+        sim.clear();
+
+        // Multi-threaded simulation with timing
+        auto start_multi = std::chrono::high_resolution_clock::now();
+        sim.run_multi_threaded_simulation();
+        auto end_multi = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_multi = end_multi - start_multi;
+
+        std::cout << "\n=== MULTI THREADED RESULTS ===\n";
+        sim.output_results();
+        std::cout << "\nMulti Threaded Time: " << elapsed_multi.count() << " seconds.\n";
+
+        // Performance comparison
+        std::cout << "\n=== PERFORMANCE COMPARISON ===\n";
+        std::cout << "Speedup: " << elapsed_single.count() / elapsed_multi.count() << "x\n";
+        
+    } else {
+        std::cout << "Invalid choice. Please enter 1, 2, or 3." << "\n";
+        return 1;
+    }
+
+    // Generate visualization data
+    std::cout << "Generating visualization data..." << "\n";
     sim.write_to_csv();
+    std::cout << "Simulation complete! Check 'dist/Data.csv' for visualization data.\n";
+    
     return 0;
 }
