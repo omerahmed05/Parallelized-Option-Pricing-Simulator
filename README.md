@@ -137,13 +137,21 @@ Note: The maximum allowed number of time steps per path is capped at 1,000 to ba
 
 To run the application, you have 2 options:
   1. Run the docker container (must have docker installed)
+
     1. `docker pull omerahmed05/montecarlo-sim`
+
     2. `docker run -it omerahmed05/montecarlo-sim`
+
     3. To view the plotted results, provide the container ID and run `docker cp <container_id>:/app/dist/plot.html ./plot.html` 
 
   2. Build and run the application manually
+
     1. Create the virtual environment
+
     2. Activate the virtual environment
+
     3. Install the python dependencies
+
     4. Change directory into src
+    
     5. Run the Makefile
